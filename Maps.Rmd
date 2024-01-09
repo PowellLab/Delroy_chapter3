@@ -1,0 +1,258 @@
+---
+title: "Mapping"
+author: "Brendan"
+date: "31/05/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+# Installed and loaded dplyr as a google search said this was related to %>% not being found. Seemed to solve the issue:
+library(tidyverse)
+library(car)
+library(sciplot)
+library(ggplot2)
+library(lme4)
+library(emmeans)
+library(corrplot)
+library(ggpubr)
+library(visreg)
+library(raster)
+library(sp)
+library(spdep)
+library(spatialreg)
+library(dplyr)
+
+dat <- read.csv("deriveddata/BASE_brendan_20201008.tsv", sep = "\t")
+
+dat$order <- as.factor(dat$order)
+dat$guild <- as.factor(dat$guild)
+dat$Sample.ID <- as.factor(dat$Sample.ID)
+#str(dat)
+#table(dat$guild)
+table(dat$vegetation_type)
+table(dat$broad_land_use)
+
+datf50 <- dat %>% 
+  filter(depth_cm == 0 & order %in% c('Glomerales', 'Gigasporales') & vegetation_type %in% c('Forest','Grassland','Woodland') & p.colwell_mgkg < 50 & n.no3_mgkg <= 50 & n.nh4_mgkg <= 50) %>% 
+  mutate(relabund = OTU.Count/seqdepth) %>% 
+  mutate(NH4NO3Rat = n.nh4_mgkg/n.no3_mgkg) %>%
+  mutate(NH4PRat = n.nh4_mgkg/p.colwell_mgkg) %>%
+  mutate(NO3PRat = n.no3_mgkg/p.colwell_mgkg) %>%
+  group_by(Sample.ID, order) %>% 
+  summarise(relabund = sum(relabund),
+  #summarise(relabund = mean(relabund),
+            lon = lon[1],
+            lat = lat[1],
+            p.colwell_mgkg = mean(p.colwell_mgkg), 
+            n.nh4_mgkg = mean(n.nh4_mgkg),
+            n.no3_mgkg = mean(n.no3_mgkg),
+            NH4NO3Rat = mean(NH4NO3Rat),
+            NH4PRat = mean(NH4PRat),
+            NO3PRat = mean(NO3PRat),
+            vegetation_type = vegetation_type[1], 
+            broad_land_use = broad_land_use[1]) %>% 
+  # add rows and zero values where taxa are missing
+  pivot_wider(names_from=order, values_from=relabund, values_fill=0) %>% 
+  pivot_longer(cols=any_of(unique(dat$order)), names_to='order', values_to='relabund')
+
+datf50$log_relabund <- log10(datf50$relabund+0.000001)
+datf50$log_p <- log10(datf50$p.colwell_mgkg+0.000001)
+datf50$log_NO3PRat <- log10(datf50$NO3PRat+0.000001)
+datf50$log_NH4PRat <- log10(datf50$NH4PRat+0.000001)
+datf50$log_no3 <- log10(datf50$n.no3_mgkg+0.000001)
+datf50$log_nh4 <- log10(datf50$n.nh4_mgkg+0.000001)
+datf50$logNH4logPRatio <- datf50$log_nh4 / datf50$log_p
+datf50$logNO3logPRatio <- datf50$log_no3 / datf50$log_p
+
+unique(datf50$Sample.ID)
+
+unqSamp <- datf50 %>%
+  summarise(Sample.ID, vegetation_type) %>%
+  summarise(Sample.ID = Sample.ID[1],
+            vegetation_type = vegetation_type[1])
+
+table(unqSamp$vegetation_type)
+```
+
+## visualise map
+
+```{r maps, include=TRUE]}
+
+dat.mp <- datf50 %>% 
+  filter(!is.na(lon)) %>% 
+#  group_by(Sample.ID, guild, lon, lat, vegetation_type) %>%
+  group_by(Sample.ID, lon, lat, vegetation_type) %>% 
+#  summarise(prop = sum(OTU.Count) / seqdepth.bothAmplicons) %>% 
+  st_as_sf(coords=c('lon', 'lat'), crs=4326) %>% 
+  st_transform(4283)
+
+dat.mpf <- datf50 %>% 
+  filter(!is.na(lon), vegetation_type == "Forest") %>% 
+#  group_by(Sample.ID, guild, lon, lat, vegetation_type) %>%
+  group_by(Sample.ID, lon, lat) %>% 
+#  summarise(prop = sum(OTU.Count) / seqdepth.bothAmplicons) %>% 
+  st_as_sf(coords=c('lon', 'lat'), crs=4326) %>% 
+  st_transform(4283)
+
+dat.mpg <- datf50 %>% 
+  filter(!is.na(lon), vegetation_type == "Grassland") %>% 
+#  group_by(Sample.ID, guild, lon, lat, vegetation_type) %>%
+  group_by(Sample.ID, lon, lat) %>% 
+#  summarise(prop = sum(OTU.Count) / seqdepth.bothAmplicons) %>% 
+  st_as_sf(coords=c('lon', 'lat'), crs=4326) %>% 
+  st_transform(4283)
+
+dat.mpw <- datf50 %>% 
+  filter(!is.na(lon), vegetation_type == "Woodland") %>% 
+#  group_by(Sample.ID, guild, lon, lat, vegetation_type) %>%
+  group_by(Sample.ID, lon, lat) %>% 
+#  summarise(prop = sum(OTU.Count) / seqdepth.bothAmplicons) %>% 
+  st_as_sf(coords=c('lon', 'lat'), crs=4326) %>% 
+  st_transform(4283)
+
+library(tmap)
+library(tmaptools)
+library(here)
+library(sf)
+library(rmapshaper)
+
+tmap_mode('view')
+
+## No filter for vegetation type, shared legend:
+tm_basemap(c('OpenTopoMap', 'OpenStreetMap')) +
+#tm_basemap(c('OpenTopoMap')) +
+#  tm_shape(filter(dat.mp, order == 'Glomerales')) + 
+  tm_shape(filter(dat.mp)) + 
+#  tm_bubbles(size='Sample.ID', col='vegetation_type')
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+## Filters for vegetation type, separate legends:
+tm_basemap(c('OpenTopoMap', 'OpenStreetMap')) +
+  tm_shape(filter(dat.mp, vegetation_type == "Forest")) +
+    tm_bubbles(col='vegetation_type', palette="rosybrown2", border.col = "black", border.lwd = 1.5, clustering = TRUE) +
+  tm_shape(filter(dat.mp, vegetation_type == "Grassland")) +
+    tm_bubbles(col='vegetation_type', palette="lightskyblue3", border.col = "black", border.lwd = 1.5, clustering = TRUE) +
+  tm_shape(filter(dat.mp, vegetation_type == "Woodland")) +
+     tm_bubbles(col='vegetation_type', palette="darkseagreen2", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+## Minimalist, no filter for vegetation type:
+tm_shape(dat.mp) +
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+## Minimalist, filters for vegetation type:
+tm_shape(filter(dat.mp, vegetation_type == "Forest")) +
+  tm_bubbles(col='vegetation_type', palette="rosybrown2", border.col = "black", border.lwd = 1.5, clustering = TRUE) +
+tm_shape(filter(dat.mp, vegetation_type == "Grassland")) +
+  tm_bubbles(col='vegetation_type', palette="lightskyblue3", border.col = "black", border.lwd = 1.5, clustering = TRUE) +
+tm_shape(filter(dat.mp, vegetation_type == "Woodland")) +
+  tm_bubbles(col='vegetation_type', palette="darkseagreen2", border.col = "black", border.lwd = 1.5, clustering = TRUE) 
+
+
+
+
+
+mapf <- tm_shape(filter(dat.mp, vegetation_type == "Forest")) +
+  tm_bubbles(col='vegetation_type', palette="rosybrown2", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+mapf
+mapg <- tm_shape(filter(dat.mp, vegetation_type == "Grassland")) +
+ tm_bubbles(col='vegetation_type', palette="lightskyblue3", border.col = "black", border.lwd = 1.5, clustering = TRUE) 
+mapw <- tm_shape(filter(dat.mp, vegetation_type == "Woodland")) +
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+mapFigs <- ggarrange(mapf, mapg, mapw, ncol = 1, nrow = 3, align = "v", labels = c("A","B","C"))
+mapFigs
+
+```
+
+
+```{r test, include=FALSE}
+### Test data
+shp <- st_read("deriveddata/acs_2012_2016_county_us_B27001/acs_2012_2016_county_us_B27001.shp",
+               stringsAsFactors = FALSE) %>%
+  rename(uninsured_2012 = un_2012,
+         uninsured_2016 = un_2016,
+         uninsured_diff = unnsrd_) %>%
+  mutate(STFIPS = stringr::str_sub(GEOID, 1, 2))
+
+###################################################
+
+shp2 <- st_read("deriveddata/1270055001_ste_2016_aust_shape/STE_2016_AUST.shp",
+               stringsAsFactors = FALSE) 
+
+tmap_mode('plot')
+
+## Simplifies the map data to load quicker
+simshp <- simplify_shape(shp2)
+
+## Non-simplified map data
+tm_shape(shp2) +
+  tm_shape(dat.mp) +
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+var <- "STE_CODE16"
+
+## Simplified map data
+tm_shape(simshp) +
+  tm_polygons(var, style = "equal", palette = "blanchedalmond", legend.show = FALSE) +
+#  tm_polygons() +
+#  tm_fill() +
+  tm_shape(dat.mp) +
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE) +
+  tm_scale_bar() #+
+#  tm_compass()
+
+
+
+## Filtering for only Forest vegetation types
+tm_shape(simshp) +
+  tm_polygons() +
+  tm_shape(filter(dat.mp, vegetation_type == "Forest")) +
+  tm_bubbles(col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+
+## Three separate maps for each vegetation type (using individual dataframes, probably not necessary):
+mapf1 <- tm_shape(simshp) +
+#  tm_polygons() +
+  tm_polygons(var, style = "equal", palette = "blanchedalmond", legend.show = FALSE) +
+#  tm_shape(dat.mpf) +
+  tm_shape(filter(dat.mp, vegetation_type == "Forest")) +
+  tm_bubbles(size = 0.5, col='vegetation_type', palette="rosybrown2", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+mapf1
+
+mapg2 <- tm_shape(simshp) +
+#  tm_polygons() +
+  tm_polygons(var, style = "equal", palette = "blanchedalmond", legend.show = FALSE) +
+#  tm_shape(dat.mpg) +
+  tm_shape(filter(dat.mp, vegetation_type == "Grassland")) +
+  tm_bubbles(size = 0.5, col='vegetation_type', palette="lightskyblue3", border.col = "black", border.lwd = 1.5, clustering = TRUE)
+mapw3 <- tm_shape(simshp) +
+#  tm_polygons() +
+  tm_polygons(var, style = "equal", palette = "blanchedalmond", legend.show = FALSE) +
+#  tm_shape(dat.mpw) +
+  tm_shape(filter(dat.mp, vegetation_type == "Woodland")) +
+  tm_bubbles(size = 0.5, col='vegetation_type', palette="darkseagreen2", border.col = "black", border.lwd = 1.5, clustering = TRUE) 
+
+mapAll <- tm_shape(simshp) +
+#  tm_polygons() +
+  tm_polygons(var, style = "equal", palette = "blanchedalmond", legend.show = FALSE) +
+#  tm_layout(inner.margins = c(0.06, 0.02, 0.02, 0.08))) +
+#  tm_shape(dat.mpw) +
+  tm_shape(dat.mp) +
+  tm_bubbles(size = 0.4, col='vegetation_type', palette="Pastel1", border.col = "black", border.lwd = 1.5, clustering = TRUE) 
+mapAll
+
+#mapFigs <- tmaparrange(mapf1, mapg2, mapw3, ncol = 1, nrow = 3, align = "v", labels = c("A","B","C"))
+mapFigs <- tmap_arrange(mapf1, mapg2, mapw3, ncol = 1, sync = TRUE, asp = 1)
+mapFigs
+
+tmap_save(mapFigs, filename="mapFigs.jpg")
+tmap_save(mapf1, filename="mapf1.jpg") 
+tmap_save(mapg2, filename="mapg2.jpg") 
+tmap_save(mapw3, filename="mapw3.jpg")
+tmap_save(mapAll, filename="mapAll.jpg")
+tmap_save(mapAll, filename="mapAll2.jpg", dpi = 600)
+```
+
+
+

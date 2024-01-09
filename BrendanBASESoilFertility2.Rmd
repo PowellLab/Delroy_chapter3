@@ -1,0 +1,1318 @@
+---
+title: "Brendan_BASEData"
+author: "Brendan"
+date: "16/09/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+# Installed and loaded dplyr as a google search said this was related to %>% not being found. Seemed to solve the issue:
+library(tidyverse)
+library(car)
+library(sciplot)
+library(ggplot2)
+library(lme4)
+#library(emmeans)
+library(corrplot)
+library(ggpubr)
+#library(visreg)
+#library(raster)
+#library(sp)
+#library(spdep)
+#library(spatialreg)
+#library(dplyr)
+
+dat <- read.csv("Data/BASE_brendan_20201008.tsv", sep = "\t")
+
+dat$order <- as.factor(dat$order)
+dat$guild <- as.factor(dat$guild)
+dat$Sample.ID <- as.factor(dat$Sample.ID)
+#str(dat)
+#table(dat$guild)
+table(dat$vegetation_type)
+table(dat$broad_land_use)
+
+datf50 <- dat %>% 
+  filter(depth_cm == 0 & order %in% c('Glomerales', 'Gigasporales') & vegetation_type %in% c('Forest','Grassland','Woodland') & p.colwell_mgkg < 50 & n.no3_mgkg <= 50 & n.nh4_mgkg <= 50) %>% 
+  mutate(relabund = OTU.Count/seqdepth) %>% 
+  mutate(NH4NO3Rat = n.nh4_mgkg/n.no3_mgkg) %>%
+  mutate(NH4PRat = n.nh4_mgkg/p.colwell_mgkg) %>%
+  mutate(NO3PRat = n.no3_mgkg/p.colwell_mgkg) %>%
+  group_by(Sample.ID, order) %>% 
+  summarise(relabund = sum(relabund),
+            lon = lon[1],
+            lat = lat[1],
+            p.colwell_mgkg = mean(p.colwell_mgkg), 
+            n.nh4_mgkg = mean(n.nh4_mgkg),
+            n.no3_mgkg = mean(n.no3_mgkg),
+            NH4NO3Rat = mean(NH4NO3Rat),
+            NH4PRat = mean(NH4PRat),
+            NO3PRat = mean(NO3PRat),
+            vegetation_type = vegetation_type[1], 
+            broad_land_use = broad_land_use[1]) %>% 
+  # add rows and zero values where taxa are missing
+  pivot_wider(names_from=order, values_from=relabund, values_fill=0) %>% 
+  pivot_longer(cols=any_of(unique(dat$order)), names_to='order', values_to='relabund')
+
+dbwood <- datf50 %>% filter(vegetation_type == 'Woodland')
+table(dbwood$broad_land_use)
+dbfore <- datf50 %>% filter(vegetation_type == 'Forest')
+dbgras <- datf50 %>% filter(vegetation_type == 'Grassland')
+
+
+datf5022 <- dat %>% 
+  filter(depth_cm == 0 & order %in% c('Glomerales', 'Gigasporales') & vegetation_type %in% c('Forest','Grassland','Woodland') & p.colwell_mgkg < 50 & n.no3_mgkg <= 50 & n.nh4_mgkg <= 50) %>% 
+  mutate(relabund = OTU.Count/seqdepth) %>% 
+  mutate(NH4NO3Rat = n.nh4_mgkg/n.no3_mgkg) %>%
+  mutate(NH4PRat = n.nh4_mgkg/p.colwell_mgkg) %>%
+  mutate(NO3PRat = n.no3_mgkg/p.colwell_mgkg) %>%
+  group_by(Sample.ID, order) %>% 
+  summarise(relabund = sum(relabund),
+            lon = lon[1],
+            lat = lat[1],
+            p.colwell_mgkg = mean(p.colwell_mgkg), 
+            n.nh4_mgkg = mean(n.nh4_mgkg),
+            n.no3_mgkg = mean(n.no3_mgkg),
+            NH4NO3Rat = mean(NH4NO3Rat),
+            NH4PRat = mean(NH4PRat),
+            NO3PRat = mean(NO3PRat),
+            vegetation_type = vegetation_type[1], 
+            broad_land_use = broad_land_use[1],
+            detailed_land_use = detailed_land_use[1]) %>% 
+  # add rows and zero values where taxa are missing
+  pivot_wider(names_from=order, values_from=relabund, values_fill=0) %>% 
+  pivot_longer(cols=any_of(unique(dat$order)), names_to='order', values_to='relabund')
+
+dbwood22 <- datf5022 %>% filter(vegetation_type == 'Woodland')
+table(dbwood22$broad_land_use)
+table(dbwood22$detailed_land_use)
+
+datf50seq <- dat %>% 
+  filter(depth_cm == 0 & order %in% c('Glomerales', 'Gigasporales') & vegetation_type %in% c('Forest','Grassland','Woodland') & p.colwell_mgkg < 50 & n.no3_mgkg <= 50 & n.nh4_mgkg <= 50) %>% 
+  mutate(relabund = OTU.Count/seqdepth) %>% 
+  mutate(NH4NO3Rat = n.nh4_mgkg/n.no3_mgkg) %>%
+  mutate(NH4PRat = n.nh4_mgkg/p.colwell_mgkg) %>%
+  mutate(NO3PRat = n.no3_mgkg/p.colwell_mgkg) %>%
+  group_by(Sample.ID, order) %>% 
+  summarise(relabund = sum(relabund),
+            lon = lon[1],
+            lat = lat[1],
+            p.colwell_mgkg = mean(p.colwell_mgkg), 
+            n.nh4_mgkg = mean(n.nh4_mgkg),
+            n.no3_mgkg = mean(n.no3_mgkg),
+            NH4NO3Rat = mean(NH4NO3Rat),
+            NH4PRat = mean(NH4PRat),
+            NO3PRat = mean(NO3PRat),
+            vegetation_type = vegetation_type[1], 
+            broad_land_use = broad_land_use[1],
+            detailed_land_use = detailed_land_use[1],
+            seqdepth = seqdepth[1]) %>% 
+  # add rows and zero values where taxa are missing
+  pivot_wider(names_from=order, values_from=relabund, values_fill=0) %>% 
+  pivot_longer(cols=any_of(unique(dat$order)), names_to='order', values_to='relabund')
+
+dbwood2 <- datf50seq %>% filter(vegetation_type == 'Woodland')
+table(dbwood2$broad_land_use)
+table(dbwood2$detailed_land_use)
+
+
+dbfore2 <- datf50seq %>% filter(vegetation_type == 'Forest')
+dbgras2 <- datf50seq %>% filter(vegetation_type == 'Grassland')
+
+########################################################################################################
+########################################################################################################
+
+
+
+
+datSite <- dat %>% 
+  filter(depth_cm == 0 & order %in% c('Glomerales', 'Gigasporales') & vegetation_type %in% c('Forest','Grassland','Woodland') & p.colwell_mgkg < 50 & n.no3_mgkg <= 50 & n.nh4_mgkg <= 50) %>% 
+  mutate(relabund = OTU.Count/seqdepth) %>% 
+  mutate(NH4NO3Rat = n.nh4_mgkg/n.no3_mgkg) %>%
+  mutate(NH4PRat = n.nh4_mgkg/p.colwell_mgkg) %>%
+  mutate(NO3PRat = n.no3_mgkg/p.colwell_mgkg) %>%
+  group_by(Sample.ID, order) %>% 
+  summarise(relabund = sum(relabund),
+  #summarise(relabund = mean(relabund),
+            lon = lon[1],
+            lat = lat[1],
+            p.colwell_mgkg = mean(p.colwell_mgkg), 
+            n.nh4_mgkg = mean(n.nh4_mgkg),
+            n.no3_mgkg = mean(n.no3_mgkg),
+            NH4NO3Rat = mean(NH4NO3Rat),
+            NH4PRat = mean(NH4PRat),
+            NO3PRat = mean(NO3PRat),
+            vegetation_type = vegetation_type[1], 
+            broad_land_use = broad_land_use[1],
+            location_description = location_description[1]) %>% 
+  # add rows and zero values where taxa are missing
+  pivot_wider(names_from=order, values_from=relabund, values_fill=0) %>% 
+  pivot_longer(cols=any_of(unique(dat$order)), names_to='order', values_to='relabund')
+unique(datf50$lon)
+
+datSite$SampNum <- 1
+datSite <- datSite %>% 
+  group_by(lon, lat, location_description) %>%
+  summarise(vegetation_type = vegetation_type[1],
+            SampNum = sum(SampNum))
+datSite2 <- datSite %>%
+  group_by(location_description) %>%
+  summarise(vegetation_type = vegetation_type[1],
+            SampNum = sum(SampNum))
+write.csv(datSite2, "Chp3SiteList.csv", row.names = FALSE)
+
+unique(datSite$location_description)
+
+datf50$log_relabund <- log10(datf50$relabund+0.000001)
+datf50$log_p <- log10(datf50$p.colwell_mgkg+0.000001)
+datf50$log_NO3PRat <- log10(datf50$NO3PRat+0.000001)
+datf50$log_NH4PRat <- log10(datf50$NH4PRat+0.000001)
+datf50$log_no3 <- log10(datf50$n.no3_mgkg+0.000001)
+datf50$log_nh4 <- log10(datf50$n.nh4_mgkg+0.000001)
+datf50$logNH4logPRatio <- datf50$log_nh4 / datf50$log_p
+datf50$logNO3logPRatio <- datf50$log_no3 / datf50$log_p
+```
+
+```{r Using model including N:P ratio calculated from log P and N}
+
+tempR3 <- datf50 %>% 
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+#summary(tempR3)
+tempR3$order <- as.factor(tempR3$order)
+levels(tempR3$order)
+
+nb50c <- knn2nb(knearneigh(as.matrix(tempR3[, c('lon', 'lat')]), k=13))
+lw50c <- nb2listw(nb50c, zero.policy=T)
+rm1s50c <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            log_no3 * order +
+                            log_nh4 * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(rm1s50c)
+
+rm2s50c <- update(rm1s50c, . ~ . - log_nh4:order)
+#AIC(rm1s50c, rm2s50c)
+#summary(rm2s50c)
+
+rm3s50c <- update(rm1s50c, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#summary(rm3s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c)
+
+rm4s50c <- update(rm3s50c, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(rm4s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c, rm4s50c)
+
+rm5s50c <- update(rm4s50c, . ~ . - log_no3:order)
+#summary(rm5s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c, rm4s50c, rm5s50c)
+#### Best model
+
+rm6s50c <- update(rm4s50c, . ~ . - log_p:order - log_p)
+#AIC(rm4s50c, rm5s50c, rm6s50c)
+#summary(rm6s50c)
+
+rm7s50c <- update(rm5s50c, . ~ . - vegetation_type:order)
+#AIC(rm5s50c, rm7s50c)
+#summary(rm7s50c)
+
+##########################################################################
+######### Glomerales as Reference Coefficient ###########
+##########################################################################
+
+tempR3$order <- factor(tempR3$order, levels = c("Glomerales","Gigasporales"))
+levels(tempR3$order)
+
+nb50c <- knn2nb(knearneigh(as.matrix(tempR3[, c('lon', 'lat')]), k=13))
+lw50c <- nb2listw(nb50c, zero.policy=T)
+rm1s50c <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            log_no3 * order +
+                            log_nh4 * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(rm1s50c)
+
+rm2s50c <- update(rm1s50c, . ~ . - log_nh4:order)
+#AIC(rm1s50c, rm2s50c)
+#summary(rm2s50c)
+
+rm3s50c <- update(rm1s50c, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#summary(rm3s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c)
+
+rm4s50c <- update(rm3s50c, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(rm4s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c, rm4s50c)
+
+rm5s50c <- update(rm4s50c, . ~ . - log_no3:order)
+#summary(rm5s50c)
+#AIC(rm1s50c, rm2s50c, rm3s50c, rm4s50c, rm5s50c)
+#### Best model
+
+```
+
+#########################################################################################
+######################### Polynomial Models #############################################
+#########################################################################################
+
+
+\newpage
+```{r including polynomial variables in the model, include=TRUE}
+
+tempR3$order <- factor(tempR3$order, levels = c("Gigasporales", "Glomerales"))
+
+nb50c <- knn2nb(knearneigh(as.matrix(tempR3[, c('lon', 'lat')]), k=13))
+lw50c <- nb2listw(nb50c, zero.policy=T)
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+summary(polymod)
+polymod2 <- update(polymod, . ~ . - log_nh4:order)
+#AIC(polymod, polymod2)
+#summary(polymod2)
+
+polymod3 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#summary(polymod3)
+#AIC(polymod, polymod2, polymod3)
+
+polymod4 <- update(polymod3, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polymod4)
+#AIC(polymod, polymod2, polymod3, polymod4)
+
+polymod5 <- update(polymod4, . ~ . - log_no3:order)
+#summary(polymod5)
+#AIC(polymod, polymod2, polymod3, polymod4, polymod5)
+#AIC(polymod5, rm5s50c)
+#### Best model
+
+polymod6 <- update(polymod5, . ~ . - I(log_p^2):order - I(log_p^2))
+#AIC(polymod5, polymod6)
+#AIC(polymod6, rm5s50c)
+#summary(polymod6)
+#summary(rm5s50c)
+
+rm7s50c <- update(rm5s50c, . ~ . - vegetation_type:order)
+#AIC(rm5s50c, rm7s50c)
+#summary(rm7s50c)
+
+polyquad1 <- update(polymod4, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyquad1)
+
+polyquad2 <- update(polyquad1, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+summary(polyquad2)
+# Best model
+
+polyquad3 <- update(polyquad2, . ~ . - I(log_no3^2):order - I(log_no3^2))
+#summary(polyquad3)
+
+polyquad4 <- update(polyquad2, . ~ . - log_no3:order)
+#summary(polyquad4)
+
+#########################################################################################
+################### Polymod with Glomerales as reference coefficient ####################
+#########################################################################################
+
+tempR3$order <- factor(tempR3$order, levels = c("Glomerales", "Gigasporales"))
+
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+summary(polymod)
+
+polyglom1 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#(polymod3)
+polyglom2 <- update(polyglom1, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polymod4)
+polyglom3 <- update(polyglom2, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyquad1)
+polyglom4 <- update(polyglom3, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+summary(polyglom4)
+# Best model
+
+
+```
+
+## Additive modelling
+
+```{r additive modelling for polynomial model, include=F}
+
+summary(polymod)
+
+addmod1 <- update(polymod, . ~ . - log_p - order:log_p - I(log_p^2) - order:I(log_p^2) - log_nh4 - order:log_nh4 - I(log_nh4^2) - order:I(log_nh4^2) - log_no3 - order:log_no3 - I(log_no3^2) - order:I(log_no3^2) - vegetation_type - vegetation_type:order - order - logNO3logPRatio - logNH4logPRatio - order:logNO3logPRatio - order:logNH4logPRatio)  
+summary(addmod1)
+
+addmod2 <- update(addmod1, . ~ . + order)
+summary(addmod2)
+
+addmod3 <- update(addmod2, . ~ . + vegetation_type + vegetation_type:order)
+summary(addmod3)
+
+addmod4 <- update(addmod3, . ~ . + log_p + order:log_p)
+summary(addmod4)
+
+addmod5 <- update(addmod4, . ~ . + log_no3 + order:log_no3)
+summary(addmod5)
+
+addmod6 <- update(addmod5, . ~ . + log_nh4 + order:log_nh4)
+summary(addmod6)
+
+addmod7 <- update(addmod6, . ~ . + I(log_no3^2) + order:I(log_no3^2))
+summary(addmod7)
+
+addmod8 <- update(addmod7, . ~ . + I(log_p^2) + order:I(log_p^2))
+summary(addmod8)
+
+addmod9 <- update(addmod7, . ~ . + I(log_nh4^2) + order:I(log_nh4^2))
+summary(addmod9)
+
+addmod10 <- update(addmod7, . ~ . + logNO3logPRatio + order:logNO3logPRatio)
+summary(addmod10)
+
+addmod11 <- update(addmod7, . ~ . + logNH4logPRatio + order:logNH4logPRatio)
+summary(addmod11)
+
+## Additive Model AIC Comparison
+AIC(polymod, addmod1, addmod2, addmod3, addmod4, addmod5, addmod6, addmod7, addmod8, addmod9, addmod10, addmod11)
+```
+
+# Woodland Reference Coefficient Models
+
+```{r including polynomial variables in the model with Woodland reference coefficient, include=TRUE}
+
+tempR3$order <- factor(tempR3$order, levels = c("Gigasporales", "Glomerales"))
+tempR3$vegetation_type <- factor(tempR3$vegetation_type, levels = c("Woodland", "Grassland", "Forest"))
+
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(polymod)
+polymod2 <- update(polymod, . ~ . - log_nh4:order)
+#summary(polymod2)
+polymod3 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#summary(polymod3)
+polymod4 <- update(polymod3, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polymod4)
+polymod5 <- update(polymod4, . ~ . - log_no3:order)
+#### Best model
+
+polymod6 <- update(polymod5, . ~ . - I(log_p^2):order - I(log_p^2))
+#AIC(polymod5, polymod6)
+#AIC(polymod6, rm5s50c)
+#summary(polymod6)
+#summary(rm5s50c)
+
+rm7s50c <- update(rm5s50c, . ~ . - vegetation_type:order)
+#AIC(rm5s50c, rm7s50c)
+#summary(rm7s50c)
+
+polyquad1 <- update(polymod4, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyquad1)
+
+polyquad2 <- update(polyquad1, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+## Best model - Woodland Reference
+summary(polyquad2)
+
+
+polyquad3 <- update(polyquad2, . ~ . - I(log_no3^2):order - I(log_no3^2))
+#summary(polyquad3)
+
+polyquad4 <- update(polyquad2, . ~ . - log_no3:order)
+#summary(polyquad4)
+
+#########################################################################################
+################### Polymod with Glomerales as reference coefficient ####################
+#########################################################################################
+
+tempR3$order <- factor(tempR3$order, levels = c("Glomerales", "Gigasporales"))
+
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(polymod)
+
+polyglomw1 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#(polyglomw3)
+polyglomw2 <- update(polyglom1, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polyglomw2)
+polyglomw3 <- update(polyglom2, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyglomw3)
+polyglomw4 <- update(polyglom3, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+# Best model - woodland reference
+summary(polyglomw4)
+
+
+```
+
+# Forest Reference Coefficient Models
+
+```{r including polynomial variables in the model with Forest reference coefficient, include=TRUE}
+
+tempR3$order <- factor(tempR3$order, levels = c("Gigasporales", "Glomerales"))
+tempR3$vegetation_type <- factor(tempR3$vegetation_type, levels = c("Forest", "Woodland", "Grassland"))
+
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(polymod)
+polymod2 <- update(polymod, . ~ . - log_nh4:order)
+#summary(polymod2)
+polymod3 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#summary(polymod3)
+polymod4 <- update(polymod3, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polymod4)
+polymod5 <- update(polymod4, . ~ . - log_no3:order)
+#### Best model
+
+polymod6 <- update(polymod5, . ~ . - I(log_p^2):order - I(log_p^2))
+#AIC(polymod5, polymod6)
+#AIC(polymod6, rm5s50c)
+#summary(polymod6)
+#summary(rm5s50c)
+
+rm7s50c <- update(rm5s50c, . ~ . - vegetation_type:order)
+#AIC(rm5s50c, rm7s50c)
+#summary(rm7s50c)
+
+polyquad1 <- update(polymod4, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyquad1)
+
+polyquad2 <- update(polyquad1, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+# Best model - forest reference
+summary(polyquad2)
+
+polyquad3 <- update(polyquad2, . ~ . - I(log_no3^2):order - I(log_no3^2))
+#summary(polyquad3)
+
+polyquad4 <- update(polyquad2, . ~ . - log_no3:order)
+#summary(polyquad4)
+
+#########################################################################################
+################### Polymod with Glomerales as reference coefficient ####################
+#########################################################################################
+
+tempR3$order <- factor(tempR3$order, levels = c("Glomerales", "Gigasporales"))
+
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+#summary(polymod)
+
+polyglomw1 <- update(polymod, . ~ . - logNH4logPRatio:order - logNH4logPRatio)
+#(polyglomw3)
+polyglomw2 <- update(polyglom1, . ~ . - logNO3logPRatio:order - logNO3logPRatio)
+#summary(polyglomw2)
+polyglomw3 <- update(polyglom2, . ~ . - I(log_p^2):order - I(log_p^2))
+#summary(polyglomw3)
+polyglomw4 <- update(polyglom3, . ~ . - I(log_nh4^2):order - I(log_nh4^2))
+# Best model - Forest reference
+summary(polyglomw4)
+
+```
+
+
+\newpage
+# Soil Phosphorus (50 mg/kg)
+```{r Soil P 50, include = TRUE, echo = FALSE}
+
+#ggplot(datf50, aes(x=log_p, y=log10(relabund+0.000001))) + 
+ # stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  #geom_point() + 
+  #ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  #scale_fill_manual(values=c('red', 'blue')) +
+  #scale_color_manual(values=c('red', 'blue')) + 
+  #facet_grid(rows=vars(order)) + 
+  #theme_bw()
+
+datplot <- datf50 
+datplot <- datplot %>% 
+  mutate_at("order", str_replace, "Glomerales", "Glomeraceae") %>%
+  mutate_at("order", str_replace, "Gigasporales", "Gigasporaceae") 
+
+ggplot(datplot, aes(x=log_p, y=log_relabund)) + 
+  stat_smooth(method='lm', aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+#  scale_colour_manual(values=c('red', 'blue')) +
+  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('green', 'green')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+#ggplot(datf50, aes(x=log_p, y=log_relabund)) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(order)) + 
+#  theme_bw()
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil P, split by vegetation type:
+#ggplot(datf50, aes(x=log10(p.colwell_mgkg + 0.5), y=log10(relabund+0.000001), col=order)) +
+#ggplot(datf50, aes(x=log_p, y=log_relabund, col=order)) +
+ggplot(datf50, aes(x=log_p, y=log_relabund, col=order)) +
+# ggplot(datfveg, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+ggplot(datf50, aes(x=log_p, y=log_relabund, col=order)) +
+# ggplot(datfveg, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+#ggplot(datf50, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) +
+# ggplot(datfveg, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+#  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(vegetation_type)) + 
+#  theme_bw()
+
+ggplot(datplot, aes(x=log_p, y=log_relabund)) + 
+  geom_smooth(method=lm, aes(fill=order), fullrange=T, show.legend=F) +
+  scale_colour_manual(values=c('red', 'blue')) +
+  scale_fill_manual(values=c('red', 'blue')) +
+    geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+ggplot(datplot, aes(x=log_p, y=log_relabund, colour=order)) + 
+#  geom_smooth(method=lm, fullrange=T, show.legend=F) +
+  geom_smooth(method=lm, aes(fill=order), fullrange=T) +
+  scale_colour_manual(values=c('red','blue')) +
+  scale_fill_manual(values=c('red', 'blue')) +
+    geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') +
+  facet_grid(rows=vars(order)) +
+  theme_bw()
+
+ggplot(datplot, aes(x=log_p, y=log_relabund, col=order)) +
+# ggplot(datfveg, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+
+```
+
+\newpage
+# Soil Ammonium (NH4 - 50 mg/kg)
+```{r Soil NH4 50, include= TRUE, echo = FALSE}
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4 using transformed nitrogen data: 
+#ggplot(datf50, aes(x=log_nh4, y=log10(relabund+0.000001))) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(order)) + 
+#  theme_bw()
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4 using transformed nitrogen data: 
+ggplot(datf50, aes(x=log_nh4, y=log_relabund)) + 
+  stat_smooth(method='lm', aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+ggplot(datf50, aes(x=log_nh4, y=log_relabund)) + 
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+## Using tempR3 as data and log_relabund: 
+#ggplot(tempR3, aes(x=log_nh4, y=log_relabund)) + 
+#  stat_smooth(method='lm', aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(order)) + 
+#  theme_bw()
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4, split by vegetation type:
+ggplot(datf50, aes(x=log_nh4, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+ggplot(datf50, aes(x=log_nh4, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+```
+
+\newpage
+# Soil Nitrate (NO3 - 50 mg/kg)
+```{r Soil NO3 50, include= TRUE, echo = FALSE}
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NO3: 
+
+#ggplot(datf50, aes(x=log_no3, y=log10(relabund+0.000001))) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance') + xlab('NO3 concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(order)) + 
+#  theme_bw()
+
+ggplot(datf50, aes(x=log_no3, y=log_relabund)) + 
+  stat_smooth(method='lm', aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+ggplot(datf50, aes(x=log_no3, y=log_relabund)) + 
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw()
+
+#ggplot(datf50, aes(x=log_no3, y=log10(relabund+0.000001))) + 
+#  stat_smooth(method='lm', aes(fill=order), fullrange=T, show.legend=F) +
+#  geom_point() + 
+#  ylab('Relative Abundance') + xlab('NO3 concentration log10(mg/kg)') + 
+#  scale_fill_manual(values=c('red', 'blue')) +
+#  scale_color_manual(values=c('red', 'blue')) + 
+#  facet_grid(rows=vars(order)) + 
+#  theme_bw()
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4, split by vegetation type:
+ggplot(datf50, aes(x=log_no3, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4, split by vegetation type:
+ggplot(datf50, aes(x=log_no3, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+
+```
+
+
+\newpage
+# Vegetation Types
+```{r vegetation type, include= TRUE, echo = FALSE}
+
+tempR3$order <- factor(tempR3$order, levels = c("Gigasporales", "Glomerales"))
+tempR3$vegetation_type <- factor(tempR3$vegetation_type, levels = c("Grassland", "Woodland", "Forest"))
+
+# This will plot log_relabund means across the whole dataset. Trends are quite similar to what you'd expect looking at estimates in the summary output, but the estimates are relative abundance where all continous variables are 0.
+boxplot(log_relabund ~ vegetation_type * order, data = tempR3, ylab="log10(Relative Abundance)", xlab="Vegetation Type")
+
+```
+
+\newpage
+# Gigasporales vs Glomerales - Grasslands
+```{r Gigasporales vs Glomerales - Grasslands, include= TRUE, echo = FALSE}
+
+#grass <- datf50 %>% 
+#  filter(vegetation_type %in% c('Grassland'))
+
+datf50$order <- factor(datf50$order, levels = c("Gigasporales", "Glomerales"))
+
+grass <- datf50 %>% 
+  filter(vegetation_type %in% c('Grassland')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+gnb <- knn2nb(knearneigh(as.matrix(grass[, c('lon', 'lat')]), k=13))
+glw <- nb2listw(gnb, zero.policy=T)
+giggrasslm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=grass), data=grass, glw, tol.solve=1.0e-30, zero.policy=T)
+summary(giggrasslm)
+
+###################################
+##### Glomerales Reference ########
+###################################
+
+datf50$order <- factor(datf50$order, levels = c("Glomerales", "Gigasporales"))
+
+grass <- datf50 %>% 
+  filter(vegetation_type %in% c('Grassland')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+gnb <- knn2nb(knearneigh(as.matrix(grass[, c('lon', 'lat')]), k=13))
+glw <- nb2listw(gnb, zero.policy=T)
+glomgrasslm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=grass), data=grass, glw, tol.solve=1.0e-30, zero.policy=T)
+summary(glomgrasslm)
+
+```
+
+\newpage
+# Gigasporales vs Glomerales - Woodlands
+```{r Gigasporales vs Glomerales - Woodlands, include= TRUE, echo = FALSE}
+
+datf50$order <- factor(datf50$order, levels = c("Gigasporales", "Glomerales"))
+
+wood <- datf50 %>% 
+  filter(vegetation_type %in% c('Woodland')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+wnb <- knn2nb(knearneigh(as.matrix(wood[, c('lon', 'lat')]), k=13))
+wlw <- nb2listw(wnb, zero.policy=T)
+gigwoodlm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=wood), data=wood, wlw, tol.solve=1.0e-30, zero.policy=T)
+summary(gigwoodlm)
+
+###################################
+#### Glomerales Reference #########
+##################################
+
+datf50$order <- factor(datf50$order, levels = c("Glomerales", "Gigasporales"))
+
+wood <- datf50 %>% 
+  filter(vegetation_type %in% c('Woodland')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+wnb <- knn2nb(knearneigh(as.matrix(wood[, c('lon', 'lat')]), k=13))
+wlw <- nb2listw(wnb, zero.policy=T)
+glomwoodlm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=wood), data=wood, wlw, tol.solve=1.0e-30, zero.policy=T)
+summary(glomwoodlm)
+
+
+```
+
+\newpage
+# Gigasporales vs Glomerales - Forests
+```{r vegetation type - Gigasporales vs Glomerales - Forests, include= TRUE, echo = FALSE}
+
+datf50$order <- factor(datf50$order, levels = c("Gigasporales", "Glomerales"))
+
+forest <- datf50 %>% 
+  filter(vegetation_type %in% c('Forest')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+fnb <- knn2nb(knearneigh(as.matrix(forest[, c('lon', 'lat')]), k=13))
+flw <- nb2listw(fnb, zero.policy=T)
+gigforestlm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=forest), data=forest, flw, tol.solve=1.0e-30, zero.policy=T)
+summary(gigforestlm)
+
+################################################
+########### Glomerales Reference ###############
+################################################
+
+datf50$order <- factor(datf50$order, levels = c("Glomerales", "Gigasporales"))
+
+forest <- datf50 %>% 
+  filter(vegetation_type %in% c('Forest')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+fnb <- knn2nb(knearneigh(as.matrix(forest[, c('lon', 'lat')]), k=13))
+flw <- nb2listw(fnb, zero.policy=T)
+glomforestlm <- lagsarlm(lm(log_relabund ~ order + 
+                            log_p * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order,
+                          data=forest), data=forest, flw, tol.solve=1.0e-30, zero.policy=T)
+summary(glomforestlm)
+
+```
+
+\newpage
+# Gigasporales Vegetation Types
+```{r vegetation type - Gigasporales, include= TRUE, echo = TRUE}
+
+gigaveg <- datf50 %>% 
+  filter(order %in% c('Gigasporales')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+gigaveg$vegetation_type <- as.factor(gigaveg$vegetation_type)
+gigaveg$vegetation_type <- factor(gigaveg$vegetation_type, levels = c("Grassland","Woodland","Forest"))
+
+givnb <- knn2nb(knearneigh(as.matrix(gigaveg[, c('lon', 'lat')]), k=13))
+givlw <- nb2listw(givnb, zero.policy=T)
+gigaveglm <- lagsarlm(lm(log_relabund ~ vegetation_type +
+                             log_p * vegetation_type +
+                             log_no3 * vegetation_type +
+                             I(log_no3^2) * vegetation_type +
+                             log_nh4 * vegetation_type,
+                          data=gigaveg), data=gigaveg, givlw, tol.solve=1.0e-30, zero.policy=T)
+summary(gigaveglm)
+
+```
+
+\newpage
+# Glomerales Vegetation Types
+```{r vegetation type - Glomerales extended, include= T}
+
+glomveg <- datf50 %>% 
+  filter(order %in% c('Glomerales')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+glomveg$vegetation_type <- as.factor(glomveg$vegetation_type)
+glomveg$vegetation_type <- factor(glomveg$vegetation_type, levels = c("Grassland","Woodland","Forest"))
+
+gvnb <- knn2nb(knearneigh(as.matrix(glomveg[, c('lon', 'lat')]), k=13))
+gvlw <- nb2listw(gvnb, zero.policy=T)
+glomveglm <- lagsarlm(lm(log_relabund ~ vegetation_type +
+                             log_p * vegetation_type +
+                             log_no3 * vegetation_type +
+                             I(log_no3^2) * vegetation_type +
+                             log_nh4 * vegetation_type,
+                          data=glomveg), data=glomveg, gvlw, tol.solve=1.0e-30, zero.policy=T)
+summary(glomveglm)
+
+```
+
+```{r vegetation type - Glomerales, include= F, echo = TRUE}
+
+glomveg <- datf50 %>% 
+  filter(order %in% c('Glomerales')) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4, logNO3logPRatio, logNH4logPRatio) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+
+glomveg$vegetation_type <- as.factor(glomveg$vegetation_type)
+
+##############################################
+### Additive Model - Grassland Reference #####
+##############################################
+
+glomveg$vegetation_type <- factor(glomveg$vegetation_type, levels = c("Grassland","Woodland","Forest"))
+levels(glomveg$vegetation_type)
+table(glomveg$vegetation_type)
+
+gvnb <- knn2nb(knearneigh(as.matrix(glomveg[, c('lon', 'lat')]), k=13))
+gvlw <- nb2listw(gvnb, zero.policy=T)
+glomveglm <- lagsarlm(lm(log_relabund ~ vegetation_type + 
+                             log_p * vegetation_type +
+                             I(log_p^2) * vegetation_type +
+                             log_no3 * vegetation_type +
+                             I(log_no3^2) * vegetation_type +
+                             log_nh4 * vegetation_type +
+                             I(log_nh4^2) * vegetation_type +
+                             logNO3logPRatio * vegetation_type +
+                             logNH4logPRatio * vegetation_type,
+                          data=glomveg), data=glomveg, gvlw, tol.solve=1.0e-30, zero.policy=T)
+#summary(glomveglm)
+
+addgl1 <- update(glomveglm, . ~ . - log_nh4 - log_nh4:vegetation_type - I(log_nh4^2) - I(log_nh4^2):vegetation_type - log_no3 - log_no3:vegetation_type - I(log_no3^2):vegetation_type - I(log_no3^2) - log_p - log_p:vegetation_type - I(log_p^2) - I(log_p^2):vegetation_type - vegetation_type - logNO3logPRatio - logNO3logPRatio:vegetation_type - logNH4logPRatio - logNH4logPRatio:vegetation_type)
+summary(addgl1)
+
+addgl2 <- update(addgl1, . ~ . + vegetation_type)
+#summary(addgl2)
+addgl3 <- update(addgl2, . ~ . + log_p)
+#summary(addgl3)
+addgl4 <- update(addgl3, . ~ . + I(log_p^2))
+#summary(addgl3)
+addgl5 <- update(addgl4, . ~ . + log_no3)
+#summary(addgl5)
+addgl6 <- update(addgl5, . ~ . + I(log_no3^2))
+#summary(addgl6)
+## Second Best Model
+addgl7 <- update(addgl5, . ~ . + I(log_nh4^2))
+summary(addgl7)
+addgl8 <- update(addgl7, . ~ . + log_nh4)
+#summary(addgl8)
+addgl9 <- update(addgl7, . ~ . + log_p:vegetation_type)
+#summary(addgl9)
+
+######################## Best Model
+addgl10 <- update(addgl7, . ~ . + log_no3:vegetation_type)
+summary(addgl10)
+
+addgl11 <- update(addgl10, . ~ . + log_nh4:vegetation_type)
+#summary(addgl11)
+addgl12 <- update(addgl10, . ~ . + I(log_p^2):vegetation_type)
+#summary(addgl12)
+addgl13 <- update(addgl10, . ~ . + I(log_no3^2):vegetation_type)
+#(addgl13)
+addgl14 <- update(addgl10, . ~ . + I(log_nh4^2):vegetation_type)
+#summary(addgl14)
+
+addgl15 <- update(addgl10, . ~ . + logNO3logPRatio)
+#summary(addgl15)
+addgl16 <- update(addgl10, . ~ . + logNO3logPRatio:vegetation_type)
+#summary(addgl16)
+addgl17 <- update(addgl10, . ~ . + logNH4logPRatio)
+#summary(addgl17)
+addgl18 <- update(addgl10, . ~ . + logNH4logPRatio + logNH4logPRatio:vegetation_type)
+#summary(addgl18)
+
+AIC(glomveglm, addgl1, addgl2, addgl3, addgl4, addgl5, addgl6, addgl7, addgl8, addgl9, addgl10, addgl11, addgl12, addgl13, addgl14, addgl15, addgl16, addgl17, addgl18)
+
+```
+
+## Figure 2
+
+```{r Figure 2, include= F, echo = TRUE}
+datplot <- datf50 
+datplot <- datplot %>% 
+  mutate_at("order", str_replace, "Glomerales", "Glomeraceae") %>%
+  mutate_at("order", str_replace, "Gigasporales", "Gigasporaceae") 
+datplot$vegetation_type <- factor(datplot$vegetation_type, levels = c("Grassland","Woodland","Forest"))
+
+## Soil P
+pv <- ggplot(datplot, aes(x=log_p, y=log_relabund, col=order)) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.5, ymax = Inf, colour = "black", fill = "gold", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.10, ymax = -0, colour = "red", fill = "red", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0, xmax= 0.25, ymin = -0.5, ymax = Inf, colour = "black", fill = "chartreuse2", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0, xmax= 0.25, ymin = -0.10, ymax = -0, colour = "blue", fill = "blue", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0.12, xmax= 0.13, ymin = -0.5, ymax = Inf, colour = "blue", fill = "blue", alpha = 0.01) +
+   geom_rect(data = subset(datplot, vegetation_type == "Grassland"), xmin= -0.25, xmax= 0, ymin = -0.5, ymax = Inf, colour = "black", fill = "gold", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Grassland"), xmin= -0.25, xmax= 0, ymin = -0.10, ymax = -0, colour = "red", fill = "red", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Forest"), xmin= -0.25, xmax= 0, ymin = -0.5, ymax = Inf, colour = "black", fill = "gold", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Forest"), xmin= -0.25, xmax= 0, ymin = -0.10, ymax = -0, colour = "red", fill = "red", alpha = 0.01) +
+  #geom_hline(data = data.frame(xint=0, vegetation_type="Woodland"), aes(xintercept = xint), linetype = "solid", colour = "red", size = 0.8) +
+  #geom_hline(data = subset(datplot, vegetation_type="Woodland"), yint=0, linetype = "solid", colour = "red", size = 0.8) +
+  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  coord_cartesian(ylim = c(-6, 0)) + 
+  theme_bw()
+pv
+## Soil NO3
+no3v <- ggplot(datplot, aes(x=log_no3, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.5, ymax = Inf, colour = "black", fill = "gold", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.10, ymax = -0, colour = "red", fill = "red", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0, xmax= 0.25, ymin = -0.5, ymax = Inf, colour = "black", fill = "chartreuse2", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0, xmax= 0.25, ymin = -0.10, ymax = -0, colour = "blue", fill = "blue", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= 0.12, xmax= 0.13, ymin = -0.5, ymax = Inf, colour = "blue", fill = "blue", alpha = 0.01) +
+  ylab('') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  coord_cartesian(ylim = c(-6, 0)) + 
+  facet_grid(rows=vars(vegetation_type)) + 
+  theme_bw()
+no3v
+## Soil NH4
+nh4v <- ggplot(datplot, aes(x=log_nh4, y=log_relabund, col=order)) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.5, ymax = Inf, colour = "black", fill = "gold", alpha = 0.01) +
+  geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.25, xmax= 0, ymin = -0.10, ymax = -0, colour = "blue", fill = "blue", alpha = 0.01) +
+    geom_rect(data = subset(datplot, vegetation_type == "Woodland"), xmin= -0.13, xmax= -0.12, ymin = -0.5, ymax = Inf, colour = "blue", fill = "blue", alpha = 0.01) +
+  ylab('') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) +
+  coord_cartesian(ylim = c(-6, 0)) + 
+  facet_grid(row=vars(vegetation_type)) + 
+  theme_bw()
+nh4v
+
+ggarrange(pv, no3v, nh4v, ncol=3, nrow=1, legend = "top", common.legend = TRUE)
+
+## Soil P
+pv2 <- ggplot(datplot, aes(x=log_p, y=log_relabund, col=order)) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('') + xlab('Phosphorus concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  facet_grid(row=vars(vegetation_type)) + 
+  coord_cartesian(ylim = c(-6, 0)) + 
+  theme_bw()
+## Soil NO3
+no3v2 <- ggplot(datplot, aes(x=log_no3, y=log_relabund, col=order)) +
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('') + xlab('NO3 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  coord_cartesian(ylim = c(-6, 0)) + 
+  facet_grid(row=vars(vegetation_type)) + 
+  theme_bw()
+## Soil NH4
+nh4v2 <- ggplot(datplot, aes(x=log_nh4, y=log_relabund, col=order)) +
+  stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('') + xlab('NH4 concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue')) +
+  scale_color_manual(values=c('red', 'blue')) + 
+  coord_cartesian(ylim = c(-6, 0)) + 
+  facet_grid(row=vars(vegetation_type)) + 
+  theme_bw()
+
+ggarrange(pv2, no3v2, nh4v2, ncol=3, nrow=1, legend = "top", common.legend = TRUE)
+
+
+```
+
+```{r spatial test, include=F}
+
+nb50c <- knn2nb(knearneigh(as.matrix(tempR3[, c('lon', 'lat')]), k=13))
+lw50c <- nb2listw(nb50c, zero.policy=T)
+rm1s50c <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            log_no3 * order +
+                            log_nh4 * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+
+linMTest <- lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            log_no3 * order +
+                            log_nh4 * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3)
+linRes <- resid(linMTest)
+moran.mc(linRes, lw50c, 999, zero.policy=T)
+
+
+nb50c <- knn2nb(knearneigh(as.matrix(tempR3[, c('lon', 'lat')]), k=13))
+lw50c <- nb2listw(nb50c, zero.policy=T)
+polymod <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3), data=tempR3, lw50c, tol.solve=1.0e-30, zero.policy=T)
+
+polyMTest <- lm(log_relabund ~ vegetation_type * order + 
+                            log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order,
+                          data=tempR3)
+polyRes <- resid(polyMTest)
+
+moran.mc(polyRes, lw50c, 999, zero.policy=T)
+
+```
+
+
+
+
+```{r Perform test for spatial autocorrelation of residuals for 50 ppm, echo=FALSE}
+m150 <- lm(log_relabund ~ vegetation_type * order + log_p * order +
+                            I(log_p^2) * order +
+                            log_no3 * order +
+                            I(log_no3^2) * order +
+                            log_nh4 * order +
+                            I(log_nh4^2) * order +
+                            logNO3logPRatio * order +
+                            logNH4logPRatio * order, data=datf50)
+
+# inspection of spatial autocorrelation in residuals
+coords50 <- as.matrix(datf50[, c('lon', 'lat')])
+df50 <- data.frame(log_relabund=datf50$log_relabund, resid=resid(m150))
+coordinates(df50) <- coords50
+# bbox(df)
+r.vgm50 <- gstat::variogram(resid ~ 1, data=df50, cutoff=5, width=0.1) 
+r.fit50 <- gstat::fit.variogram(r.vgm50, model=gstat::vgm(NA, 'Sph', NA, NA))
+r.fit50
+plot(r.vgm50, r.fit50)
+
+# # for knearneigh function
+# x <- c()
+# for(i in 1:100) x <- c(x, cor(resid(m1),
+#                               sapply(knn2nb(knearneigh(coords, k=i)),
+#                                      function(x) mean(resid(m1)[x]))))
+# plot(x)
+# which.max(x)
+
+# get neighbours
+# nb <- graph2nb(gabrielneigh(coords))
+### k=12 will raise the LM test P-value over 0.05, but only just.
+nb50 <- knn2nb(knearneigh(coords50, k=13))
+# nb <- dnearneigh(coords, d1=0, d2=1.02)
+# plot(nb, coords)
+# summary(nb, coords)
+resm150 <- resid(m150)
+resnb50 <- sapply(nb50, function(x) mean(resm150[x]))
+
+cor(resm150, resnb50, use='pairwise.complete.obs')
+plot(resm150, resnb50, xlab='Residuals', ylab='Mean adjacent residuals')
+lw50 <- nb2listw(nb50, zero.policy=T)
+# To confirm autocorrelation:
+moran.mc(resm150, lw50, 999, zero.policy=T)
+# lm.morantest(m1, lw, zero.policy=T)
+
+temp <- datf50 %>% 
+# dplyr::select(lon, lat, log_relabund, vegetation_type, order, p.colwell_mgkg, n.no3_mgkg, n.nh4_mgkg) %>% 
+# dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, n.no3_mgkg, n.nh4_mgkg) %>%
+  dplyr::select(lon, lat, log_relabund, vegetation_type, order, log_p, log_no3, log_nh4) %>%
+  mutate_at(vars(vegetation_type, order), as.factor) %>% 
+  drop_na() %>% 
+  as.data.frame()
+summary(temp)
+nb50 <- knn2nb(knearneigh(as.matrix(temp[, c('lon', 'lat')]), k=13))
+lw50 <- nb2listw(nb50, zero.policy=T)
+m1s50 <- lagsarlm(lm(log_relabund ~ vegetation_type * order + 
+                           # p.colwell_mgkg * order + 
+                            log_p * order +
+                           # n.no3_mgkg * order + 
+                           # n.nh4_mgkg * order,
+                            log_no3 * order +
+                            log_nh4 * order,
+                          data=temp), data=temp, lw50, tol.solve=1.0e-30, zero.policy=T)
+```
+
+
+
+

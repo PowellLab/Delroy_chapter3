@@ -24,7 +24,7 @@ library(spdep)
 library(spatialreg)
 library(dplyr)
 
-dat <- read.csv("deriveddata/BASE_brendan_20201008.tsv", sep = "\t")
+dat <- read.csv("Data/BASE_brendan_20201008.tsv", sep = "\t")
 
 dat$order <- as.factor(dat$order)
 dat$guild <- as.factor(dat$guild)

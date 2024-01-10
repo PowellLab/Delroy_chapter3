@@ -24,7 +24,7 @@ library(spdep)
 library(spatialreg)
 library(dplyr)
 
-dat <- read.csv("deriveddata/BASE_brendan_20201008.tsv", sep = "\t")
+dat <- read.csv("Data/BASE_brendan_20201008.tsv", sep = "\t")
 
 dat$order <- as.factor(dat$order)
 dat$guild <- as.factor(dat$guild)
@@ -67,8 +67,7 @@ datf50$logNH4logPRatio <- datf50$log_nh4 / datf50$log_p
 datf50$logNO3logPRatio <- datf50$log_no3 / datf50$log_p
 
 datf50$vegetation_type <- factor(datf50$vegetation_type, levels = c("Grassland","Woodland","Forest"))
-datf50$order <- factor(datf50$order, levels = c("Glomerales", "Gigasporales"))
-""
+datf50$order <- factor(datf50$order, levels = c("Gigasporales", "Glomerales"))
 levels(datf50$order)[levels(datf50$order)=="Glomerales"] <- "Glomeraceae"
 levels(datf50$order)[levels(datf50$order)=="Gigasporales"] <- "Gigasporaceae"
 
@@ -79,7 +78,37 @@ table(datf50$vegetation_type)
 
 ```
 
-# Soil Phosphorus (50 mg/kg)
+# Figure 2
+
+## Soil Phosphorus (50 mg/kg)
+
+```{r Soil P 50, include = TRUE, echo = FALSE}
+
+datplot <- datf50 
+datplot <- datplot %>% 
+  mutate_at("order", str_replace, "Glomerales", "Glomeraceae") %>%
+  mutate_at("order", str_replace, "Gigasporales", "Gigasporaceae") 
+
+ggplot(datplot, aes(x=log_p, y=log_relabund, col=order)) +
+# ggplot(datfveg, aes(x=p.colwell_mgkg, y=log10(relabund+0.000001), col=order)) + 
+#  stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
+  stat_smooth(method='lm', formula = y ~ x + I(x), aes(fill=order), fullrange=T, show.legend=F) +
+  geom_point() + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphate-P concentration log10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue'), name=NULL) +
+  scale_color_manual(values=c('red', 'blue'), name=NULL) + 
+  facet_grid(rows=vars(order)) + 
+  theme_bw() + 
+  theme(legend.position='top')
+
+ggsave("figures/figure2.pdf", plot = last_plot(), device = pdf, 
+       width=4, height=5)
+
+```
+
+# Figure 3
+
+## Soil Phosphorus (50 mg/kg)
 ```{r Soil P 50, include = TRUE, echo = FALSE}
 
 ggplot(datf50, aes(x=log_p, y=log_relabund)) + 
@@ -95,9 +124,9 @@ ggplot(datf50, aes(x=log_p, y=log_relabund)) +
 pfigv <- ggplot(datf50, aes(x=log_p, y=log_relabund, col=order)) +
   stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
   geom_point() + 
-  ylab('Relative Abundance log10(%)') + xlab('Phosphorus concentration log10(mg/kg)') + 
-  scale_fill_manual(values=c('red', 'blue')) +
-  scale_color_manual(values=c('red', 'blue')) + 
+  ylab('Relative Abundance log10(%)') + xlab('Phosphate-P concentration\nlog10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue'), name=NULL) +
+  scale_color_manual(values=c('red', 'blue'), name=NULL) + 
   facet_grid(rows=vars(vegetation_type)) + 
   theme_bw()
 
@@ -106,7 +135,7 @@ pfigv
 ```
 
 \newpage
-# Soil Ammonium (NH4 - 50 mg/kg)
+## Soil Ammonium (NH4 - 50 mg/kg)
 ```{r Soil NH4 50, include= TRUE, echo = FALSE}
 
 ## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NH4 using transformed nitrogen data: 
@@ -124,16 +153,16 @@ ggplot(datf50, aes(x=log_nh4, y=log_relabund)) +
 nh4figv <- ggplot(datf50, aes(x=log_nh4, y=log_relabund, col=order)) +
   stat_smooth(method='lm', formula = y ~ x, aes(fill=order), fullrange=T, show.legend=F) +
   geom_point() + 
-  ylab('') + xlab('NH4 concentration log10(mg/kg)') + 
-  scale_fill_manual(values=c('red', 'blue')) +
-  scale_color_manual(values=c('red', 'blue')) + 
+  ylab('') + xlab('Ammonium-N concentration\nlog10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue'), name=NULL) +
+  scale_color_manual(values=c('red', 'blue'), name=NULL) + 
   facet_grid(rows=vars(vegetation_type)) + 
   theme_bw()
 
 nh4figv
 ```
 
-# Soil Nitrate (NO3 - 50 mg/kg)
+## Soil Nitrate (NO3 - 50 mg/kg)
 ```{r Soil NO3 50, include= TRUE, echo = FALSE}
 
 ## Comparison of the Gigasporaceae and Glomeraceae relative abundance over soil NO3: 
@@ -151,16 +180,16 @@ ggplot(datf50, aes(x=log_no3, y=log_relabund)) +
 no3figv <- ggplot(datf50, aes(x=log_no3, y=log_relabund, col=order)) +
   stat_smooth(method='lm', formula = y ~ x + I(x^2), aes(fill=order), fullrange=T, show.legend=F) +
   geom_point() + 
-  ylab('') + xlab('NO3 concentration log10(mg/kg)') + 
-  scale_fill_manual(values=c('red', 'blue')) +
-  scale_color_manual(values=c('red', 'blue')) + 
+  ylab('') + xlab('Nitrate-N concentration\nlog10(mg/kg)') + 
+  scale_fill_manual(values=c('red', 'blue'), name=NULL) +
+  scale_color_manual(values=c('red', 'blue'), name=NULL) + 
   facet_grid(rows=vars(vegetation_type)) + 
   theme_bw()
 
 no3figv
 ```
 
-# Combined figures
+## Combined figures
 ```{r combined figures, include= TRUE, echo = FALSE}
 library(tidyverse)
 library("ggpubr")
@@ -168,9 +197,11 @@ library("ggpubr")
 vfig <- ggarrange(pfigv, no3figv, nh4figv,
                     ncol = 3, nrow = 1,
                     common.legend = TRUE,
-                    legend = "top") +
-  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+                    legend = "top", 
+                  labels='AUTO') +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), legend.title=element_blank())
 vfig
-ggsave("test5", plot = last_plot(), device = pdf)
+ggsave("figures/figure3.pdf", plot = last_plot(), device = pdf, 
+       width=10, height=8)
 ```
 
